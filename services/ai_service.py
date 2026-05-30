@@ -30,20 +30,8 @@ PORTFOLIO = [
 ]
 
 
-def _pick_portfolio_links(category: str) -> list[str]:
-    cat = category.lower()
-    scored: list[tuple[int, str]] = []
-    for item in PORTFOLIO:
-        score = sum(1 for tag in item["tags"] if tag in cat)
-        scored.append((score, item["url"]))
-    scored.sort(key=lambda x: x[0], reverse=True)
-
-    # Always include at least 1 match; cap at 4
-    result = [url for score, url in scored if score > 0]
-    if not result:
-        # No match — pick 2 most visually diverse ones
-        result = [PORTFOLIO[0]["url"], PORTFOLIO[2]["url"]]
-    return result[:4]
+def _pick_portfolio_links(_category: str) -> list[str]:
+    return [item["url"] for item in PORTFOLIO]
 
 
 async def generate_outreach_message(
@@ -80,7 +68,7 @@ Business details:
 - Rating: {rating_text}
 - Website situation: {context}
 
-Portfolio links (pick 1-2 that feel relevant, skip if not relevant):
+Portfolio links (include ALL of these in the WhatsApp message):
 {portfolio_block}
 
 ---
@@ -108,7 +96,7 @@ WHATSAPP RULES:
 - Short sentences. Line breaks between thoughts. Like a real text.
 - Sound like a person, not a company.
 - Talk about one problem only. Do not list multiple issues.
-- If using portfolio links: "Some recent websites I've worked on:" then 1-2 links on separate lines.
+- Include ALL portfolio links under "Some recent websites I've worked on:" — each on its own line.
 - End with a short question. Examples: "Interested?", "Can I show you?", "Want to see it?", "Would you like a quick demo?"
 - 60-120 words total.
 
