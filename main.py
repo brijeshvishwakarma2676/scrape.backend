@@ -35,8 +35,8 @@ app.add_middleware(
 
 @app.middleware("http")
 async def verify_api_key(request: Request, call_next):
-    # Skip health check
-    if request.url.path == "/api/health":
+    # Skip preflight and health check
+    if request.method == "OPTIONS" or request.url.path == "/api/health":
         return await call_next(request)
 
     if API_SECRET_KEY:
