@@ -1,8 +1,16 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from database import engine
+from dotenv import load_dotenv
 import models
+import os
+
+load_dotenv()
+
+API_SECRET_KEY = os.getenv("API_SECRET_KEY", "")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
 
 
 @asynccontextmanager
@@ -15,11 +23,26 @@ app = FastAPI(title="LeadGen API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def verify_api_key(request: Request, call_next):
+    # Skip health check
+    if request.url.path == "/api/health":
+        return await call_next(request)
+
+    if API_SECRET_KEY:
+        key = request.headers.get("X-API-Key", "")
+        if key != API_SECRET_KEY:
+            return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+
+    return await call_next(request)
+
 
 from routers import businesses, messages, website_checker, scraper, pipeline
 
