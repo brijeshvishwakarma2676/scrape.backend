@@ -40,27 +40,70 @@ async def generate_outreach_message(
     rating: float | None,
     review_count: int | None,
     website_status: str,
+    prompt_type: str = "initial",
+    platform: str = "whatsapp",
 ) -> dict[str, str]:
     rating_text = f"{rating} stars with {review_count} reviews" if rating else "no rating info available"
     category_text = category or "business"
 
     if website_status == "NO_WEBSITE":
         context = "They do not currently have a website."
-        whatsapp_hint = "Hi! I came across your business and noticed you don't currently have a website."
-        sms_hint = "Hi! I noticed your business doesn't have a website."
     elif website_status == "BROKEN":
         context = "They have a website but it is not working properly."
-        whatsapp_hint = "Hi! I visited your website and noticed it isn't loading properly."
-        sms_hint = "Hi! Your website seems to have an issue - it isn't loading."
     else:
         context = "They have a working website with room for improvement."
-        whatsapp_hint = "Hi! I visited your website and found a few opportunities to improve the design and user experience."
-        sms_hint = "Hi! I checked your website and think there are ways to improve it."
 
     portfolio_links = _pick_portfolio_links(category_text)
     portfolio_block = "\n".join(f"- {url}" for url in portfolio_links)
 
-    prompt = f"""You are a freelancer texting a local business owner on WhatsApp. Write exactly like a real person — not like ChatGPT, not like a sales email, not like marketing copy.
+    # Contextual rules based on the prompt type
+    if prompt_type == "follow_up":
+        intent_context = "You are sending a short follow-up message to remind them."
+        whatsapp_start = "Hi! Just checking if you saw my previous message."
+        whatsapp_end = "Do you want to see the free design I made for you? It's completely free."
+    elif prompt_type == "objection_budget":
+        intent_context = "They replied saying they don't have money right now. Assure them it is free to look."
+        whatsapp_start = "I completely understand! Budget is tight for everyone right now."
+        whatsapp_end = "Can I just show you the design anyway? No pressure to buy, I just want you to see it."
+    else:
+        intent_context = "This is your first time reaching out to them."
+        whatsapp_start = f"Hi!\n\nI came across {name}..."
+        whatsapp_end = "Can I send you the free design link to check it out? (Completely free, no catch!)"
+
+    # Define platform-specific rules and JSON format
+    platform_rules = ""
+    json_format = ""
+    
+    if platform == "whatsapp":
+        platform_rules = f"""WHATSAPP RULES:
+- Start with something like: "{whatsapp_start}"
+- Tell them you have already made a quick, free, custom homepage design for their business ({name}) to show them.
+- Include ALL portfolio links under "Some websites I have made:" — each on its own line.
+- End with a simple question: "{whatsapp_end}"
+- Use 2-3 emojis maximum.
+- VERY IMPORTANT: Write in extremely simple, basic English. It must be instantly understandable by a local Indian shop owner or small business person. Do not use heavy vocabulary. Keep sentences very short."""
+        json_format = '{\n  "whatsapp": "the whatsapp message"\n}'
+        
+    elif platform == "sms":
+        platform_rules = f"""SMS RULES:
+- Start: "Hi! I came across {name}..."
+- 1-2 sentences max. Under 160 characters.
+- No links.
+- End with a short simple question.
+- VERY IMPORTANT: Write in extremely simple, basic English for a local Indian business owner."""
+        json_format = '{\n  "sms": "the sms message"\n}'
+        
+    else:  # email
+        platform_rules = f"""EMAIL RULES:
+- Write a short cold email with the exact same free mockup offer.
+- Keep it highly personalized, professional but very simple.
+- Provide a catchy, simple subject line.
+- Include ALL portfolio links.
+- VERY IMPORTANT: Write in extremely simple, basic English. It must be instantly understandable by a local Indian shop owner. No complex corporate words."""
+        json_format = '{\n  "email_subject": "subject line for the email",\n  "email_body": "body of the email"\n}'
+
+    prompt = f"""You are a freelancer contacting a local Indian business owner. 
+Write exactly like a real person sending a normal message.
 
 Business details:
 - Name: {name}
@@ -68,56 +111,22 @@ Business details:
 - Rating: {rating_text}
 - Website situation: {context}
 
-Portfolio links (include ALL of these in the WhatsApp message):
+Context: {intent_context}
+
+Portfolio links (include ALL of these if requested):
 {portfolio_block}
 
 ---
 
-GOOD EXAMPLE (copy this tone and structure exactly):
-
-Hi!
-
-I came across 24/7 Fitness Club and noticed you have 122 reviews. 💪
-
-I couldn't find a website for the gym.
-
-A lot of people check online before joining, so I thought I'd reach out.
-
-Some recent websites I've worked on:
-https://www.harmonystudio.co.in/
-
-Would you like to see a quick demo idea for your gym?
-
----
-
-WHATSAPP RULES:
-- Start exactly: "Hi!\\n\\nI came across {name}..."
-- Mention ONE specific thing: their rating, review count, or the website problem. Not all of them.
-- Short sentences. Line breaks between thoughts. Like a real text.
-- Sound like a person, not a company.
-- Talk about one problem only. Do not list multiple issues.
-- Include ALL portfolio links under "Some recent websites I've worked on:" — each on its own line.
-- End with a short question. Examples: "Interested?", "Can I show you?", "Want to see it?", "Would you like a quick demo?"
-- 60-120 words total.
+{platform_rules}
 
 BANNED WORDS AND PHRASES — never use any of these:
-I believe, online presence, connect with more clients, opportunities, enhance, improve your business, would you be open to, I'd love to discuss, leverage, boost, enhance your online presence, digital presence, maximize growth, transform your business, take your business to the next level, stand out online, drive more customers, professional online presence, cutting-edge, clearly has a great reputation, I noticed some opportunities
-
----
-
-SMS RULES:
-- Start: "Hi! I came across {name}..."
-- 1-2 sentences max. Under 160 characters.
-- No links.
-- End with a short question.
+I believe, online presence, connect with more clients, opportunities, enhance, improve your business, would you be open to, I'd love to discuss, leverage, boost, digital presence, maximize growth, transform, take your business to the next level, stand out online, drive more customers, cutting-edge
 
 ---
 
 Return ONLY this JSON, no extra text:
-{{
-  "whatsapp": "the whatsapp message",
-  "sms": "the sms message"
-}}"""
+{json_format}"""
 
     response = await client.chat.completions.create(
         model="gpt-4o-mini",
@@ -130,4 +139,6 @@ Return ONLY this JSON, no extra text:
     return {
         "whatsapp": result.get("whatsapp", ""),
         "sms": result.get("sms", ""),
+        "email_subject": result.get("email_subject", ""),
+        "email_body": result.get("email_body", ""),
     }

@@ -18,6 +18,7 @@ class Business(Base):
     website_status = Column(String(20), default="UNCHECKED")  # UNCHECKED, NO_WEBSITE, WORKING, BROKEN
     lead_status = Column(String(20), default="NEW")  # NEW, CONTACTED, INTERESTED, WON, LOST
     notes = Column(Text)
+    next_followup_date = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     messages = relationship("Message", back_populates="business", cascade="all, delete-orphan")

@@ -31,6 +31,8 @@ async def generate_message(data: schemas.MessageCreate, db: Session = Depends(ge
         rating=business.rating,
         review_count=business.review_count,
         website_status=business.website_status,
+        prompt_type=data.prompt_type,
+        platform=data.platform,
     )
 
     message = models.Message(

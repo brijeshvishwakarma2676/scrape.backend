@@ -37,11 +37,13 @@ def get_stats(db: Session = Depends(get_db)):
     )
 
 
-@router.get("", response_model=list[schemas.BusinessOut])
+@router.get("", response_model=schemas.PaginatedBusinessOut)
 def list_businesses(
     search: Optional[str] = Query(None),
     lead_status: Optional[str] = Query(None),
     website_status: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=0),
     db: Session = Depends(get_db),
 ):
     q = db.query(models.Business)
@@ -55,7 +57,26 @@ def list_businesses(
         q = q.filter(models.Business.lead_status == lead_status)
     if website_status:
         q = q.filter(models.Business.website_status == website_status)
-    return q.order_by(models.Business.created_at.desc()).all()
+    
+    total = q.count()
+    q = q.order_by(models.Business.created_at.desc())
+    
+    if limit > 0:
+        offset = (page - 1) * limit
+        items = q.offset(offset).limit(limit).all()
+        pages = (total + limit - 1) // limit
+    else:
+        items = q.all()
+        pages = 1
+        limit = total
+
+    return schemas.PaginatedBusinessOut(
+        items=items,
+        total=total,
+        page=page,
+        limit=limit,
+        pages=pages,
+    )
 
 
 @router.post("", response_model=schemas.BusinessOut, status_code=201)

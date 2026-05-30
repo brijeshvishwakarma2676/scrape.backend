@@ -24,6 +24,7 @@ class BusinessUpdate(BaseModel):
     website_status: Optional[str] = None
     lead_status: Optional[str] = None
     notes: Optional[str] = None
+    next_followup_date: Optional[datetime] = None
 
 
 class BusinessOut(BaseModel):
@@ -40,11 +41,22 @@ class BusinessOut(BaseModel):
     website_status: str
     lead_status: str
     notes: Optional[str]
+    next_followup_date: Optional[datetime] = None
     created_at: datetime
+
+
+class PaginatedBusinessOut(BaseModel):
+    items: list[BusinessOut]
+    total: int
+    page: int
+    limit: int
+    pages: int
 
 
 class MessageCreate(BaseModel):
     business_id: int
+    prompt_type: Optional[str] = "initial"
+    platform: Optional[str] = "whatsapp"
 
 
 class MessageOut(BaseModel):
