@@ -10,7 +10,10 @@ import os
 load_dotenv()
 
 API_SECRET_KEY = os.getenv("API_SECRET_KEY", "")
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:5173,https://scrape-frontend-iota.vercel.app"
+).split(",")
 
 
 @asynccontextmanager
