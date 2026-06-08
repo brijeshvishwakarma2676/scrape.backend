@@ -30,9 +30,74 @@ PORTFOLIO = [
 ]
 
 
-def _pick_portfolio_links(_category: str) -> list[str]:
-    return [item["url"] for item in PORTFOLIO]
+def _pick_portfolio_links(category: str) -> list[str]:
+    """Pick the most relevant portfolio links first, then fill with others.
+    Always returns at least 2 links so the lead sees enough work."""
+    if not category:
+        return [item["url"] for item in PORTFOLIO]
 
+    cat_lower = category.lower()
+    scored = []
+    for item in PORTFOLIO:
+        match_count = sum(1 for tag in item["tags"] if tag in cat_lower)
+        scored.append((match_count, item["url"]))
+
+    # Sort by relevance (highest match first), then add remaining
+    scored.sort(key=lambda x: x[0], reverse=True)
+    relevant = [url for count, url in scored if count > 0]
+    others = [url for count, url in scored if count == 0]
+
+    # Always show at least 2: relevant first, fill with others
+    result = relevant + others
+    return result[:4]  # cap at 4 max
+
+
+def _build_rating_hook(name: str, rating: float | None, review_count: int | None) -> str:
+    """Generate a natural compliment line based on the business rating."""
+    if rating and rating >= 4.5 and review_count and review_count >= 20:
+        return f"{name} has amazing reviews — {rating}⭐ with {review_count}+ reviews! Customers clearly love it."
+    elif rating and rating >= 4.0:
+        return f"{name} is doing great with {rating}⭐ rating. That's solid!"
+    elif rating and rating >= 3.0:
+        return f"{name} is already getting customers coming in."
+    else:
+        return ""
+
+
+# ── Few-shot examples so the AI learns the exact tone ──────────────────────────
+
+WHATSAPP_EXAMPLE = """Hi! 👋
+
+I came across Royal Biryani House on Google and I really liked it — 4.5⭐ with 200+ reviews! 🔥
+
+I'm a web developer and I already made a quick free homepage design for Royal Biryani House. Just to show you how it can look.
+
+Some websites I have made:
+- https://www.artsify.in/
+- https://www.tanisiimpex.com/
+
+Can I send you the free design link to check it out? Completely free, no catch!"""
+
+SMS_EXAMPLE = """Hi! I saw Royal Biryani House on Google — great reviews! I make websites for local businesses. Can I show you a free design I made for you?"""
+
+EMAIL_EXAMPLE_SUBJECT = "I made a free website design for Royal Biryani House"
+EMAIL_EXAMPLE_BODY = """Hi,
+
+I came across Royal Biryani House on Google and really liked your 4.5⭐ rating!
+
+I'm a web developer and I already made a quick, free homepage design just for your business. No cost, no commitment — I just want to show you how it could look.
+
+Here are some websites I have built:
+- https://www.artsify.in/
+- https://www.tanisiimpex.com/
+
+Would you like to see the free design? Happy to share the link.
+
+Thanks,
+VernoraTech"""
+
+
+# ── Main generation function ───────────────────────────────────────────────────
 
 async def generate_outreach_message(
     name: str,
@@ -43,95 +108,126 @@ async def generate_outreach_message(
     prompt_type: str = "initial",
     platform: str = "whatsapp",
 ) -> dict[str, str]:
-    rating_text = f"{rating} stars with {review_count} reviews" if rating else "no rating info available"
     category_text = category or "business"
 
     if website_status == "NO_WEBSITE":
-        context = "They do not currently have a website."
+        context = "They do NOT have any website right now."
     elif website_status == "BROKEN":
-        context = "They have a website but it is not working properly."
+        context = "They have a website but it is broken / not loading."
     else:
-        context = "They have a working website with room for improvement."
+        context = "They have a working website but it could be much better."
 
     portfolio_links = _pick_portfolio_links(category_text)
     portfolio_block = "\n".join(f"- {url}" for url in portfolio_links)
 
-    # Contextual rules based on the prompt type
+    rating_hook = _build_rating_hook(name, rating, review_count)
+
+    # ── Intent / follow-up context ──
     if prompt_type == "follow_up":
-        intent_context = "You are sending a short follow-up message to remind them."
-        whatsapp_start = "Hi! Just checking if you saw my previous message."
-        whatsapp_end = "Do you want to see the free design I made for you? It's completely free."
+        intent_context = "You are sending a SHORT follow-up. They didn't reply to your first message. Keep it very short — 3-4 lines max. Sound casual, not pushy."
+        cta_hint = "Ask simply: 'Did you get a chance to see my message? I still have that free design ready for you.'"
     elif prompt_type == "objection_budget":
-        intent_context = "They replied saying they don't have money right now. Assure them it is free to look."
-        whatsapp_start = "I completely understand! Budget is tight for everyone right now."
-        whatsapp_end = "Can I just show you the design anyway? No pressure to buy, I just want you to see it."
+        intent_context = "They said they don't have budget right now. Be understanding. Remind them it is 100% free to just LOOK at the design. No payment needed."
+        cta_hint = "Ask simply: 'Can I just send you the link to see? No payment needed at all, just have a look.'"
     else:
-        intent_context = "This is your first time reaching out to them."
-        whatsapp_start = f"Hi!\n\nI came across {name}..."
-        whatsapp_end = "Can I send you the free design link to check it out? (Completely free, no catch!)"
+        intent_context = "This is your FIRST message to them. You are introducing yourself."
+        cta_hint = "End with: 'Can I send you the free design link to check it out? (Completely free, no catch!)'"
 
-    # Define platform-specific rules and JSON format
-    platform_rules = ""
-    json_format = ""
-    
+    # ── System prompt for consistent persona ──
+    system_prompt = """You are Vernora, a friendly Indian freelance web developer reaching out to local business owners on behalf of VernoraTech.
+
+TONE RULES (very important):
+- Write like you're texting a friend. Very casual, warm, human.
+- Use simple everyday English that any Indian shop owner or small business person can instantly understand.
+- Short sentences. 1-2 lines per paragraph max.
+- Sound excited but NOT salesy. You genuinely want to help.
+- NEVER sound like a marketing agency or corporate email.
+- Use maximum 2-3 emojis (WhatsApp only). Zero emojis for email/SMS.
+
+THINGS YOU MUST NEVER SAY:
+- "I believe", "online presence", "connect with more clients"
+- "enhance", "opportunities", "leverage", "boost"
+- "digital presence", "maximize", "transform"
+- "take your business to the next level"
+- "stand out online", "drive more customers", "cutting-edge"
+- "Would you be open to", "I'd love to discuss"
+- "competitive edge", "unlock potential", "game-changer"
+- "elevate", "empower", "streamline", "optimize"
+- "value proposition", "synergy", "scalable"
+- Any sentence longer than 15 words"""
+
+    # ── Platform-specific user prompt ──
     if platform == "whatsapp":
-        platform_rules = f"""WHATSAPP RULES:
-- Start with something like: "{whatsapp_start}"
-- Tell them you have already made a quick, free, custom homepage design for their business ({name}) to show them.
-- Include ALL portfolio links under "Some websites I have made:" — each on its own line.
-- End with a simple question: "{whatsapp_end}"
-- Use 2-3 emojis maximum.
-- VERY IMPORTANT: Write in extremely simple, basic English. It must be instantly understandable by a local Indian shop owner or small business person. Do not use heavy vocabulary. Keep sentences very short."""
+        platform_rules = f"""WHATSAPP FORMAT:
+- Start with a casual greeting and mention you found {name} on Google.
+{f'- Include this compliment naturally: {rating_hook}' if rating_hook else '- Do not mention ratings since we have no data.'}
+- Say you already made a quick, free, custom homepage design for {name}.
+- List portfolio links under "Some websites I have made:" — each on its own line.
+- {cta_hint}
+- Keep the TOTAL message under 120 words.
+- Use 2-3 emojis only. Do NOT overuse emojis.
+
+EXAMPLE of the tone and format I want (do NOT copy this exactly, just match the feel):
+---
+{WHATSAPP_EXAMPLE}
+---"""
         json_format = '{\n  "whatsapp": "the whatsapp message"\n}'
-        
+
     elif platform == "sms":
-        platform_rules = f"""SMS RULES:
-- Start: "Hi! I came across {name}..."
-- 1-2 sentences max. Under 160 characters.
-- No links.
-- End with a short simple question.
-- VERY IMPORTANT: Write in extremely simple, basic English for a local Indian business owner."""
+        platform_rules = f"""SMS FORMAT:
+- Maximum 160 characters total. This is strict.
+- Start with "Hi!" and mention {name}.
+- One simple sentence about what you do.
+- End with a short question.
+- NO links, NO emojis.
+
+EXAMPLE:
+---
+{SMS_EXAMPLE}
+---"""
         json_format = '{\n  "sms": "the sms message"\n}'
-        
+
     else:  # email
-        platform_rules = f"""EMAIL RULES:
-- Write a short cold email with the exact same free mockup offer.
-- Keep it highly personalized, professional but very simple.
-- Provide a catchy, simple subject line.
-- Include ALL portfolio links.
-- VERY IMPORTANT: Write in extremely simple, basic English. It must be instantly understandable by a local Indian shop owner. No complex corporate words."""
-        json_format = '{\n  "email_subject": "subject line for the email",\n  "email_body": "body of the email"\n}'
+        platform_rules = f"""EMAIL FORMAT:
+- Write a short, warm cold email (under 100 words for body).
+- Subject line must be specific to {name} — catchy but simple.
+{f'- Include this compliment naturally: {rating_hook}' if rating_hook else '- Do not mention ratings since we have no data.'}
+- Mention the free mockup offer.
+- Include portfolio links.
+- Sign off as "VernoraTech".
+- NO emojis anywhere.
 
-    prompt = f"""You are a freelancer contacting a local Indian business owner. 
-Write exactly like a real person sending a normal message.
+EXAMPLE:
+Subject: {EMAIL_EXAMPLE_SUBJECT}
+Body:
+---
+{EMAIL_EXAMPLE_BODY}
+---"""
+        json_format = '{\n  "email_subject": "subject line",\n  "email_body": "body of the email"\n}'
 
-Business details:
-- Name: {name}
+    user_prompt = f"""Write a {platform} outreach message for this business:
+
+- Business Name: {name}
 - Category: {category_text}
-- Rating: {rating_text}
 - Website situation: {context}
 
 Context: {intent_context}
 
-Portfolio links (include ALL of these if requested):
+Portfolio links to include (use ALL of these):
 {portfolio_block}
-
----
 
 {platform_rules}
 
-BANNED WORDS AND PHRASES — never use any of these:
-I believe, online presence, connect with more clients, opportunities, enhance, improve your business, would you be open to, I'd love to discuss, leverage, boost, digital presence, maximize growth, transform, take your business to the next level, stand out online, drive more customers, cutting-edge
-
----
-
-Return ONLY this JSON, no extra text:
+Return ONLY valid JSON, no extra text:
 {json_format}"""
 
     response = await client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.8,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        temperature=0.6,
         response_format={"type": "json_object"},
     )
 
