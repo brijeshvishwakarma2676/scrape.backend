@@ -12,20 +12,52 @@ client = AsyncOpenAI(api_key=_api_key, base_url=_base_url)
 
 PORTFOLIO = [
     {
-        "url": "https://www.tanisiimpex.com/",
-        "tags": ["import", "export", "trading", "manufacturer", "wholesale", "supplier", "textile", "garment", "industrial", "logistics", "cargo", "shop", "store", "retail", "electronics", "b2b"],
-    },
-    {
-        "url": "https://www.harmonystudio.co.in/",
-        "tags": ["music", "dance", "studio", "fitness", "yoga", "gym", "wellness", "spa", "beauty", "salon", "coaching", "school", "academy", "classes", "training", "art", "craft", "creative"],
-    },
-    {
         "url": "https://premium-dining-restaurant.vercel.app/",
-        "tags": ["restaurant", "food", "cafe", "dining", "bakery", "catering", "hotel", "bar", "lounge", "biryani", "pizza", "sweets", "juice", "kitchen", "dhaba", "tiffin"],
+        "tags": ["restaurant", "food", "cafe", "dining", "bakery", "catering", "hotel", "bar", "lounge", "biryani", "pizza", "sweets", "juice", "kitchen", "dhaba", "tiffin", "eatery"],
     },
     {
         "url": "https://premium-fitness-portfolio.vercel.app/",
         "tags": ["fitness", "gym", "workout", "crossfit", "sports", "martial arts", "boxing", "personal trainer", "health", "nutrition", "supplement", "physiotherapy", "rehab"],
+    },
+    {
+        "url": "https://eg-earth-fitness-gym-portfolio.vercel.app/",
+        "tags": ["fitness", "gym", "workout", "training", "crossfit", "sports", "health", "healthclub", "weightlifting", "personal trainer", "bodybuilding", "yoga"],
+    },
+    {
+        "url": "https://healthcare-landing-page-directions.vercel.app/",
+        "tags": ["hospital", "clinic", "doctor", "medical", "dentist", "healthcare", "health", "pharmacy", "ayurvedic", "homeopathy", "physiotherapist", "pathology", "lab", "diagnostic"],
+    },
+    {
+        "url": "https://shopcanvas-multi-theme-ecommerce.vercel.app/",
+        "tags": ["shop", "store", "retail", "ecommerce", "grocery", "supermarket", "boutique", "fashion", "clothing", "electronics", "hardware", "jewelry", "mart", "mall"],
+    },
+    {
+        "url": "https://babaproperties.vercel.app/",
+        "tags": ["real estate", "property", "properties", "builder", "construction", "developer", "broker", "agent", "homes", "apartments", "housing", "interior", "architecture"],
+    },
+    {
+        "url": "https://sr-motors-oben-portfolio.vercel.app/",
+        "tags": ["automotive", "motors", "car", "bike", "dealership", "auto", "showroom", "garage", "mechanic", "repair", "service center", "accessories", "vehicles"],
+    },
+    {
+        "url": "https://smartfilesolutions.in/",
+        "tags": ["business", "consulting", "ca", "accountant", "legal", "lawyer", "advocate", "tax", "finance", "filing", "agency", "corporate", "office", "services"],
+    },
+    {
+        "url": "https://www.harmonystudio.co.in/",
+        "tags": ["music", "dance", "studio", "yoga", "wellness", "spa", "beauty", "salon", "coaching", "school", "academy", "classes", "training", "art", "creative", "photography"],
+    },
+    {
+        "url": "https://veeru-social-welfare-website.vercel.app/",
+        "tags": ["ngo", "charity", "welfare", "social", "volunteer", "community", "trust", "foundation", "non profit", "society", "donation"],
+    },
+    {
+        "url": "https://artsify.in/",
+        "tags": ["art", "gallery", "portfolio", "creative", "design", "artist", "exhibition", "museum", "craft", "handmade"],
+    },
+    {
+        "url": "https://www.tanisiimpex.com/",
+        "tags": ["import", "export", "trading", "manufacturer", "wholesale", "supplier", "industrial", "logistics", "cargo", "b2b", "factory", "transport"],
     },
 ]
 
@@ -47,54 +79,36 @@ def _pick_portfolio_links(category: str) -> list[str]:
     relevant = [url for count, url in scored if count > 0]
     others = [url for count, url in scored if count == 0]
 
-    # Just show top 2 most relevant links, keeps it brief but gives enough examples
-    result = relevant + others
-    return result[:2]
-
-
-def _build_rating_hook(rating: float | None) -> str:
-    """Generate a very casual, short compliment based on rating."""
-    if rating and rating >= 4.5:
-        return f"Saw your {rating}⭐ rating on Google, great job! 👍"
-    elif rating and rating >= 4.0:
-        return f"Saw you're doing well on Google with {rating}⭐!"
-    else:
-        return ""
+    # Just show top relevant links (up to 2). If none match, show 1 fallback.
+    if relevant:
+        return relevant[:2]
+    return others[:1]
 
 
 # ── Few-shot examples so the AI learns the exact tone ──────────────────────────
 
-WHATSAPP_EXAMPLE = """Hi! 👋
+WHATSAPP_EXAMPLE = """Hi bhai 👋
 
-I came across Royal Biryani on Google. Saw your 4.5⭐ rating, great job! 👍
+I checked out Trinity Fitness and noticed there's no website yet.
 
-I was playing around with some ideas and actually built a custom preview of what a new website for you could look like. 
+Here is a demo concept to see how it might look:
+Demo:
+https://premium-fitness-portfolio.vercel.app/
 
-Here is some of my past work:
-- https://premium-dining-restaurant.vercel.app/
-- https://www.tanisiimpex.com/
-(Full portfolio: https://brijesh-dev-portfolio.vercel.app/)
+I can make a quick free demo for you too just to see how it looks. If you like it, we can build the full site. Let me know!"""
 
-Can I send over the preview link for you to see? No pressure!"""
+SMS_EXAMPLE = """Hi bhai 👋 Checked out Trinity Fitness and noticed no website yet. Here's a demo concept: https://premium-fitness-portfolio.vercel.app/ I can make a free demo for you too, if you like it we can build the full site. Let me know!"""
 
-SMS_EXAMPLE = """Hi! Came across Royal Biryani on Google. I make websites locally and put together a custom preview of a new site for you. Can I send the link?"""
+EMAIL_EXAMPLE_SUBJECT = "Quick homepage concept for Trinity Fitness"
+EMAIL_EXAMPLE_BODY = """Hi bhai 👋,
 
-EMAIL_EXAMPLE_SUBJECT = "Free website mockup for Royal Biryani"
-EMAIL_EXAMPLE_BODY = """Hi there,
+I checked out Trinity Fitness and noticed there's no website yet.
 
-I came across Royal Biryani on Google. Saw your 4.5⭐ rating — great job!
+Here is a demo concept to see how it might look:
+Demo:
+https://premium-fitness-portfolio.vercel.app/
 
-I was playing around with some ideas and actually built a custom preview of what a new homepage for you could look like. I think it turned out really well.
-
-Here's an example of my recent work:
-- https://premium-dining-restaurant.vercel.app/
-- https://www.harmonystudio.co.in/
-(Full portfolio: https://brijesh-dev-portfolio.vercel.app/)
-
-Would you be open to taking a quick look? Happy to send the link.
-
-Thanks,
-VernoraTech"""
+I can make a quick free demo for you too just to see how it looks. If you like it, we can build the full site. Let me know!"""
 
 
 # ── Main generation function ───────────────────────────────────────────────────
@@ -111,63 +125,57 @@ async def generate_outreach_message(
     category_text = category or "business"
 
     if website_status == "NO_WEBSITE":
-        context = "They do NOT have any website right now."
+        context = "They do NOT have any website right now. Say: 'noticed there's no website yet'"
     elif website_status == "BROKEN":
-        context = "They have a website but it is broken / not loading."
+        context = "They have a website but it is broken / not loading. Say: 'noticed the website wasn't loading'"
     else:
-        context = "They have a working website but it could be much better."
+        context = "They have a working website but it could be much better. Say: 'noticed the current website could use an update'"
 
     portfolio_links = _pick_portfolio_links(category_text)
-    portfolio_block = "\n".join(f"- {url}" for url in portfolio_links)
-
-    rating_hook = _build_rating_hook(rating)
+    demo_links_str = "\n".join(portfolio_links) if portfolio_links else "https://brijesh-dev-portfolio.vercel.app/"
 
     # ── Intent / follow-up context ──
     if prompt_type == "follow_up":
-        intent_context = "You are sending a SHORT follow-up. They didn't reply to your first message. Keep it very short — 2-3 lines max. Sound casual, not pushy."
-        cta_hint = "Ask simply: 'Just checking if you saw my last message? I still have that free design ready if you want to take a look.'"
+        intent_context = "You are sending a SHORT follow-up. They didn't reply to your first message. Keep it very short."
+        cta_hint = "If you'd still like a free demo for your business, just let me know."
     elif prompt_type == "objection_budget":
-        intent_context = "They said they don't have budget right now. Be extremely casual. Emphasize that it's just to LOOK, zero payment involved."
-        cta_hint = "Ask simply: 'No worries at all! Can I just send the link so you can see it anyway? Completely free to look, no pressure.'"
+        intent_context = "They said they don't have budget right now. Be extremely casual."
+        cta_hint = "No worries! If you just want me to make a free demo for fun so you can see it, let me know."
     else:
-        intent_context = "This is your FIRST message to them. You are introducing yourself casually."
-        cta_hint = "End with a low-pressure question like: 'Is it okay if I send over the free design link for you to check out? No pressure at all.'"
+        intent_context = "This is your FIRST message to them. You are showing them a demo concept."
+        cta_hint = "I can make a quick free demo for you too. If you like it, we can build the full site. Let me know!"
 
     # ── System prompt for consistent persona ──
-    system_prompt = """You are Vernora, a friendly Indian freelance web developer reaching out to local business owners on behalf of VernoraTech.
+    system_prompt = """You are Vernora, a friendly Indian freelance web developer reaching out to local business owners.
 
 TONE RULES (very important):
-- Write like you're texting a friend. Very casual, warm, human.
-- Use simple everyday English that any Indian shop owner or small business person can instantly understand.
-- Short sentences. 1-2 lines per paragraph max.
-- Sound excited but NOT salesy. You genuinely want to help.
-- NEVER sound like a marketing agency or corporate email.
-- Use maximum 2-3 emojis (WhatsApp only). Zero emojis for email/SMS.
+- Write like a real person texting. Extremely casual, warm, human.
+- Start with "Hi bhai 👋" or "Hi 👋".
+- Do NOT mention "Google". Just say "I checked out [Name]".
+- Do NOT mention reviews, ratings, or stars.
+- Do NOT talk about yourself ("I'm a web developer", "my past work", "my portfolio"). Make it about THEM.
+- Do NOT use sales language ("online presence", "boost", "elevate", "stand out").
+- Say "Here is a demo concept to see how it might look" before the links.
+- End by offering: "I can make a quick free demo for you too just to see how it looks. If you like it, we can build the full site."
+- ONLY include the provided Demo link(s). Format exactly as:
+Demo:
+[link 1]
+[link 2 (if provided)]
+- Keep it extremely short. 3-4 short lines max.
 
 THINGS YOU MUST NEVER SAY:
-- "I'm a web developer and I already made a quick free homepage design" (too scripted, say it naturally)
-- "Completely free, no catch!" (sounds like a scam, say "no pressure at all")
-- "I believe", "online presence", "connect with more clients"
-- "enhance", "opportunities", "leverage", "boost"
-- "digital presence", "maximize", "transform"
-- "take your business to the next level"
-- "stand out online", "drive more customers", "cutting-edge"
-- "Would you be open to", "I'd love to discuss"
-- "competitive edge", "unlock potential", "game-changer"
-- "elevate", "empower", "streamline", "optimize"
-- "value proposition", "synergy", "scalable"
-- Any sentence longer than 15 words"""
+- "I came across you on Google"
+- "Saw your 4.5 star rating"
+- "I'm a web developer"
+- "Here is some of my past work"
+- "Here is my portfolio"
+- "Would you be open to"
+- "I was playing around with some ideas" (Say "So I put together a quick homepage concept" instead)"""
 
     # ── Platform-specific user prompt ──
     if platform == "whatsapp":
         platform_rules = f"""WHATSAPP FORMAT:
 - If their name is very long (like 'Trinity fitness lounge Gym best gym in miraroad'), SHORTEN IT naturally (e.g. 'Trinity Fitness').
-- Start casually, e.g., "Hi! I was looking up places in the area and came across..."
-{f'- Include this compliment naturally: {rating_hook}' if rating_hook else '- Do not mention ratings.'}
-- Build curiosity: Say you were playing around with some ideas and actually built a custom preview of what a new site for them could look like.
-- List the past work links under "Here is some of my past work:"
-- Combine your main portfolio link concisely on the next line: "(Full portfolio: https://brijesh-dev-portfolio.vercel.app/)"
-- {cta_hint}
 - Keep the TOTAL message very short.
 - Use 1-2 emojis max. Do NOT overdo it.
 
@@ -180,10 +188,7 @@ EXAMPLE of the tone and format I want (do NOT copy this exactly, just match the 
     elif platform == "sms":
         platform_rules = f"""SMS FORMAT:
 - Maximum 160 characters total. This is strict.
-- Start with "Hi!" and mention {name}.
-- One simple sentence about what you do.
-- End with a short question.
-- NO links, NO emojis.
+- NO emojis.
 
 EXAMPLE:
 ---
@@ -193,14 +198,9 @@ EXAMPLE:
 
     else:  # email
         platform_rules = f"""EMAIL FORMAT:
-- If their name is very long (like 'Trinity fitness lounge Gym best gym in miraroad'), SHORTEN IT naturally (e.g. 'Trinity Fitness').
-- Write a short, warm cold email.
+- If their name is very long, SHORTEN IT naturally.
+- Write a short, warm cold email that feels like a text message.
 - Subject line must be simple and not clickbaity.
-{f'- Include this compliment naturally: {rating_hook}' if rating_hook else '- Do not mention ratings.'}
-- Build curiosity: Mention you were playing around with some ideas and built a custom preview of a new site for them.
-- Include the past work links.
-- Combine your main portfolio link concisely: "(Full portfolio: https://brijesh-dev-portfolio.vercel.app/)"
-- Sign off as "VernoraTech".
 - NO emojis anywhere.
 
 EXAMPLE:
@@ -214,13 +214,13 @@ Body:
     user_prompt = f"""Write a {platform} outreach message for this business:
 
 - Business Name: {name}
-- Category: {category_text}
 - Website situation: {context}
 
 Context: {intent_context}
+Call to action to use: {cta_hint}
 
-Portfolio links to include (use ALL of these):
-{portfolio_block}
+Demo Link(s) to include:
+{demo_links_str}
 
 {platform_rules}
 
