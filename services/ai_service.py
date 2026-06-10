@@ -47,19 +47,17 @@ def _pick_portfolio_links(category: str) -> list[str]:
     relevant = [url for count, url in scored if count > 0]
     others = [url for count, url in scored if count == 0]
 
-    # Always show at least 2: relevant first, fill with others
+    # Just show top 2 most relevant links, keeps it brief but gives enough examples
     result = relevant + others
-    return result[:4]  # cap at 4 max
+    return result[:2]
 
 
-def _build_rating_hook(name: str, rating: float | None, review_count: int | None) -> str:
-    """Generate a natural compliment line based on the business rating."""
-    if rating and rating >= 4.5 and review_count and review_count >= 20:
-        return f"{name} has amazing reviews — {rating}⭐ with {review_count}+ reviews! Customers clearly love it."
+def _build_rating_hook(rating: float | None) -> str:
+    """Generate a very casual, short compliment based on rating."""
+    if rating and rating >= 4.5:
+        return f"Saw your {rating}⭐ rating on Google, great job! 👍"
     elif rating and rating >= 4.0:
-        return f"{name} is doing great with {rating}⭐ rating. That's solid!"
-    elif rating and rating >= 3.0:
-        return f"{name} is already getting customers coming in."
+        return f"Saw you're doing well on Google with {rating}⭐!"
     else:
         return ""
 
@@ -68,34 +66,32 @@ def _build_rating_hook(name: str, rating: float | None, review_count: int | None
 
 WHATSAPP_EXAMPLE = """Hi! 👋
 
-I came across Royal Biryani House on Google and I really liked it — 4.5⭐ with 200+ reviews! 🔥
+I came across Royal Biryani on Google. Saw your 4.5⭐ rating, great job! 👍
 
-I'm a web developer and I already made a quick free homepage design for Royal Biryani House. Just to show you how it can look.
+I was playing around with some ideas and actually built a custom preview of what a new website for you could look like. 
 
-Some websites I have made:
-- https://www.tanisiimpex.com/
+Here is some of my past work:
 - https://premium-dining-restaurant.vercel.app/
-
-You can also see my full portfolio here: https://brijesh-dev-portfolio.vercel.app/
-
-Can I send you the free design link to check it out? Completely free, no catch!"""
-
-SMS_EXAMPLE = """Hi! I saw Royal Biryani House on Google — great reviews! I make websites for local businesses. Can I show you a free design I made for you?"""
-
-EMAIL_EXAMPLE_SUBJECT = "I made a free website design for Royal Biryani House"
-EMAIL_EXAMPLE_BODY = """Hi,
-
-I came across Royal Biryani House on Google and really liked your 4.5⭐ rating!
-
-I'm a web developer and I already made a quick, free homepage design just for your business. No cost, no commitment — I just want to show you how it could look.
-
-Here are some websites I have built:
 - https://www.tanisiimpex.com/
+(Full portfolio: https://brijesh-dev-portfolio.vercel.app/)
+
+Can I send over the preview link for you to see? No pressure!"""
+
+SMS_EXAMPLE = """Hi! Came across Royal Biryani on Google. I make websites locally and put together a custom preview of a new site for you. Can I send the link?"""
+
+EMAIL_EXAMPLE_SUBJECT = "Free website mockup for Royal Biryani"
+EMAIL_EXAMPLE_BODY = """Hi there,
+
+I came across Royal Biryani on Google. Saw your 4.5⭐ rating — great job!
+
+I was playing around with some ideas and actually built a custom preview of what a new homepage for you could look like. I think it turned out really well.
+
+Here's an example of my recent work:
+- https://premium-dining-restaurant.vercel.app/
 - https://www.harmonystudio.co.in/
+(Full portfolio: https://brijesh-dev-portfolio.vercel.app/)
 
-You can also view my complete portfolio at: https://brijesh-dev-portfolio.vercel.app/
-
-Would you like to see the free design? Happy to share the link.
+Would you be open to taking a quick look? Happy to send the link.
 
 Thanks,
 VernoraTech"""
@@ -124,18 +120,18 @@ async def generate_outreach_message(
     portfolio_links = _pick_portfolio_links(category_text)
     portfolio_block = "\n".join(f"- {url}" for url in portfolio_links)
 
-    rating_hook = _build_rating_hook(name, rating, review_count)
+    rating_hook = _build_rating_hook(rating)
 
     # ── Intent / follow-up context ──
     if prompt_type == "follow_up":
-        intent_context = "You are sending a SHORT follow-up. They didn't reply to your first message. Keep it very short — 3-4 lines max. Sound casual, not pushy."
-        cta_hint = "Ask simply: 'Did you get a chance to see my message? I still have that free design ready for you.'"
+        intent_context = "You are sending a SHORT follow-up. They didn't reply to your first message. Keep it very short — 2-3 lines max. Sound casual, not pushy."
+        cta_hint = "Ask simply: 'Just checking if you saw my last message? I still have that free design ready if you want to take a look.'"
     elif prompt_type == "objection_budget":
-        intent_context = "They said they don't have budget right now. Be understanding. Remind them it is 100% free to just LOOK at the design. No payment needed."
-        cta_hint = "Ask simply: 'Can I just send you the link to see? No payment needed at all, just have a look.'"
+        intent_context = "They said they don't have budget right now. Be extremely casual. Emphasize that it's just to LOOK, zero payment involved."
+        cta_hint = "Ask simply: 'No worries at all! Can I just send the link so you can see it anyway? Completely free to look, no pressure.'"
     else:
-        intent_context = "This is your FIRST message to them. You are introducing yourself."
-        cta_hint = "End with: 'Can I send you the free design link to check it out? (Completely free, no catch!)'"
+        intent_context = "This is your FIRST message to them. You are introducing yourself casually."
+        cta_hint = "End with a low-pressure question like: 'Is it okay if I send over the free design link for you to check out? No pressure at all.'"
 
     # ── System prompt for consistent persona ──
     system_prompt = """You are Vernora, a friendly Indian freelance web developer reaching out to local business owners on behalf of VernoraTech.
@@ -149,6 +145,8 @@ TONE RULES (very important):
 - Use maximum 2-3 emojis (WhatsApp only). Zero emojis for email/SMS.
 
 THINGS YOU MUST NEVER SAY:
+- "I'm a web developer and I already made a quick free homepage design" (too scripted, say it naturally)
+- "Completely free, no catch!" (sounds like a scam, say "no pressure at all")
 - "I believe", "online presence", "connect with more clients"
 - "enhance", "opportunities", "leverage", "boost"
 - "digital presence", "maximize", "transform"
@@ -163,14 +161,15 @@ THINGS YOU MUST NEVER SAY:
     # ── Platform-specific user prompt ──
     if platform == "whatsapp":
         platform_rules = f"""WHATSAPP FORMAT:
-- Start with a casual greeting and mention you found {name} on Google.
-{f'- Include this compliment naturally: {rating_hook}' if rating_hook else '- Do not mention ratings since we have no data.'}
-- Say you already made a quick, free, custom homepage design for {name}.
-- List portfolio links under "Some websites I have made:" — each on its own line.
-- Always mention your main portfolio link naturally (e.g. "Or see all my work here: https://brijesh-dev-portfolio.vercel.app/").
+- If their name is very long (like 'Trinity fitness lounge Gym best gym in miraroad'), SHORTEN IT naturally (e.g. 'Trinity Fitness').
+- Start casually, e.g., "Hi! I was looking up places in the area and came across..."
+{f'- Include this compliment naturally: {rating_hook}' if rating_hook else '- Do not mention ratings.'}
+- Build curiosity: Say you were playing around with some ideas and actually built a custom preview of what a new site for them could look like.
+- List the past work links under "Here is some of my past work:"
+- Combine your main portfolio link concisely on the next line: "(Full portfolio: https://brijesh-dev-portfolio.vercel.app/)"
 - {cta_hint}
-- Keep the TOTAL message under 120 words.
-- Use 2-3 emojis only. Do NOT overuse emojis.
+- Keep the TOTAL message very short.
+- Use 1-2 emojis max. Do NOT overdo it.
 
 EXAMPLE of the tone and format I want (do NOT copy this exactly, just match the feel):
 ---
@@ -194,12 +193,13 @@ EXAMPLE:
 
     else:  # email
         platform_rules = f"""EMAIL FORMAT:
-- Write a short, warm cold email (under 100 words for body).
-- Subject line must be specific to {name} — catchy but simple.
-{f'- Include this compliment naturally: {rating_hook}' if rating_hook else '- Do not mention ratings since we have no data.'}
-- Mention the free mockup offer.
-- Include portfolio links.
-- Always include your main portfolio link: https://brijesh-dev-portfolio.vercel.app/
+- If their name is very long (like 'Trinity fitness lounge Gym best gym in miraroad'), SHORTEN IT naturally (e.g. 'Trinity Fitness').
+- Write a short, warm cold email.
+- Subject line must be simple and not clickbaity.
+{f'- Include this compliment naturally: {rating_hook}' if rating_hook else '- Do not mention ratings.'}
+- Build curiosity: Mention you were playing around with some ideas and built a custom preview of a new site for them.
+- Include the past work links.
+- Combine your main portfolio link concisely: "(Full portfolio: https://brijesh-dev-portfolio.vercel.app/)"
 - Sign off as "VernoraTech".
 - NO emojis anywhere.
 
