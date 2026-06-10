@@ -12,20 +12,20 @@ client = AsyncOpenAI(api_key=_api_key, base_url=_base_url)
 
 PORTFOLIO = [
     {
-        "url": "https://www.artsify.in/",
-        "tags": ["art", "craft", "gallery", "creative", "design", "decor", "studio", "artist", "handmade", "print"],
+        "url": "https://www.tanisiimpex.com/",
+        "tags": ["import", "export", "trading", "manufacturer", "wholesale", "supplier", "textile", "garment", "industrial", "logistics", "cargo", "shop", "store", "retail", "electronics", "b2b"],
     },
     {
         "url": "https://www.harmonystudio.co.in/",
-        "tags": ["music", "dance", "studio", "fitness", "yoga", "gym", "wellness", "spa", "beauty", "salon", "coaching", "school", "academy", "classes", "training"],
+        "tags": ["music", "dance", "studio", "fitness", "yoga", "gym", "wellness", "spa", "beauty", "salon", "coaching", "school", "academy", "classes", "training", "art", "craft", "creative"],
     },
     {
-        "url": "https://www.tanisiimpex.com/",
-        "tags": ["import", "export", "trading", "manufacturer", "wholesale", "supplier", "textile", "garment", "industrial", "logistics", "cargo", "shop", "store", "retail", "electronics"],
+        "url": "https://premium-dining-restaurant.vercel.app/",
+        "tags": ["restaurant", "food", "cafe", "dining", "bakery", "catering", "hotel", "bar", "lounge", "biryani", "pizza", "sweets", "juice", "kitchen", "dhaba", "tiffin"],
     },
     {
-        "url": "https://babaproperties.vercel.app/",
-        "tags": ["property", "real estate", "realty", "housing", "builder", "construction", "architect", "interior", "home", "apartment", "plot", "land", "rental"],
+        "url": "https://premium-fitness-portfolio.vercel.app/",
+        "tags": ["fitness", "gym", "workout", "crossfit", "sports", "martial arts", "boxing", "personal trainer", "health", "nutrition", "supplement", "physiotherapy", "rehab"],
     },
 ]
 
@@ -73,8 +73,10 @@ I came across Royal Biryani House on Google and I really liked it — 4.5⭐ wit
 I'm a web developer and I already made a quick free homepage design for Royal Biryani House. Just to show you how it can look.
 
 Some websites I have made:
-- https://www.artsify.in/
 - https://www.tanisiimpex.com/
+- https://premium-dining-restaurant.vercel.app/
+
+You can also see my full portfolio here: https://brijesh-dev-portfolio.vercel.app/
 
 Can I send you the free design link to check it out? Completely free, no catch!"""
 
@@ -88,8 +90,10 @@ I came across Royal Biryani House on Google and really liked your 4.5⭐ rating!
 I'm a web developer and I already made a quick, free homepage design just for your business. No cost, no commitment — I just want to show you how it could look.
 
 Here are some websites I have built:
-- https://www.artsify.in/
 - https://www.tanisiimpex.com/
+- https://www.harmonystudio.co.in/
+
+You can also view my complete portfolio at: https://brijesh-dev-portfolio.vercel.app/
 
 Would you like to see the free design? Happy to share the link.
 
@@ -163,6 +167,7 @@ THINGS YOU MUST NEVER SAY:
 {f'- Include this compliment naturally: {rating_hook}' if rating_hook else '- Do not mention ratings since we have no data.'}
 - Say you already made a quick, free, custom homepage design for {name}.
 - List portfolio links under "Some websites I have made:" — each on its own line.
+- Always mention your main portfolio link naturally (e.g. "Or see all my work here: https://brijesh-dev-portfolio.vercel.app/").
 - {cta_hint}
 - Keep the TOTAL message under 120 words.
 - Use 2-3 emojis only. Do NOT overuse emojis.
@@ -194,6 +199,7 @@ EXAMPLE:
 {f'- Include this compliment naturally: {rating_hook}' if rating_hook else '- Do not mention ratings since we have no data.'}
 - Mention the free mockup offer.
 - Include portfolio links.
+- Always include your main portfolio link: https://brijesh-dev-portfolio.vercel.app/
 - Sign off as "VernoraTech".
 - NO emojis anywhere.
 
