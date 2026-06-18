@@ -1,5 +1,28 @@
 import httpx
+from urllib.parse import urlparse
 from schemas import WebsiteCheckResult
+
+SOCIAL_MEDIA_DOMAINS = {
+    "instagram.com",
+    "facebook.com",
+    "fb.com",
+    "twitter.com",
+    "x.com",
+    "linkedin.com",
+    "youtube.com",
+    "youtu.be",
+    "tiktok.com",
+    "snapchat.com",
+    "pinterest.com",
+    "threads.net",
+    "t.me",
+    "wa.me",
+    "linktr.ee",
+    "linktree.com",
+    "g.co",
+    "maps.google.com",
+    "goo.gl",
+}
 
 
 async def check_website(url: str) -> WebsiteCheckResult:
@@ -8,6 +31,11 @@ async def check_website(url: str) -> WebsiteCheckResult:
 
     if not url.startswith(("http://", "https://")):
         url = f"https://{url}"
+
+    parsed = urlparse(url)
+    domain = parsed.netloc.lower().removeprefix("www.")
+    if any(domain == s or domain.endswith(f".{s}") for s in SOCIAL_MEDIA_DOMAINS):
+        return WebsiteCheckResult(status="NO_WEBSITE", detail=f"Social media / directory link ({domain})")
 
     try:
         async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
