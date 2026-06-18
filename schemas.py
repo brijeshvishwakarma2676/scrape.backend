@@ -106,3 +106,12 @@ class Analytics(BaseModel):
     top_categories: list[NameValue]
     funnel: list[NameValue]
     messages_sent: int
+
+
+class BulkIds(BaseModel):
+    ids: list[int]
+
+
+class BulkStatus(BaseModel):
+    ids: list[int]
+    status: str

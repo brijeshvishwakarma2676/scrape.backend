@@ -135,6 +135,9 @@ def list_businesses(
     search: Optional[str] = Query(None),
     lead_status: Optional[str] = Query(None),
     website_status: Optional[str] = Query(None),
+    phone_type: Optional[str] = Query(None),
+    sort_by: Optional[str] = Query(None),
+    sort_dir: Optional[str] = Query("desc"),
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=0),
     db: Session = Depends(get_db),
@@ -150,10 +153,19 @@ def list_businesses(
         q = q.filter(models.Business.lead_status == lead_status)
     if website_status:
         q = q.filter(models.Business.website_status == website_status)
-    
+    if phone_type:
+        q = q.filter(models.Business.phone_type == phone_type)
+
     total = q.count()
-    q = q.order_by(models.Business.created_at.desc())
-    
+
+    sort_col = {
+        "name": models.Business.name,
+        "rating": models.Business.rating,
+        "review_count": models.Business.review_count,
+        "created_at": models.Business.created_at,
+    }.get(sort_by, models.Business.created_at)
+    q = q.order_by(sort_col.asc() if sort_dir == "asc" else sort_col.desc())
+
     if limit > 0:
         offset = (page - 1) * limit
         items = q.offset(offset).limit(limit).all()
@@ -170,6 +182,23 @@ def list_businesses(
         limit=limit,
         pages=pages,
     )
+
+
+@router.post("/bulk-delete", status_code=204)
+def bulk_delete_businesses(body: schemas.BulkIds, db: Session = Depends(get_db)):
+    if body.ids:
+        db.query(models.Business).filter(models.Business.id.in_(body.ids)).delete(synchronize_session=False)
+        db.commit()
+
+
+@router.post("/bulk-status")
+def bulk_update_status(body: schemas.BulkStatus, db: Session = Depends(get_db)):
+    if body.ids:
+        db.query(models.Business).filter(models.Business.id.in_(body.ids)).update(
+            {models.Business.lead_status: body.status}, synchronize_session=False
+        )
+        db.commit()
+    return {"updated": len(body.ids)}
 
 
 @router.post("", response_model=schemas.BusinessOut, status_code=201)
