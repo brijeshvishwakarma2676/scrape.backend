@@ -86,29 +86,52 @@ def _pick_portfolio_links(category: str) -> list[str]:
 
 
 # ── Few-shot examples so the AI learns the exact tone ──────────────────────────
+# STRATEGY: Two-step outreach.
+#   Step 1 (initial)  → a tiny simple-English question, NO links, NO pitch. Goal = just get a reply.
+#   Step 2 (send_demo)→ only AFTER they reply, share the demo link inside the conversation.
+# This beats the old "full pitch + link in message 1" which gave the owner the whole offer
+# at once and left them nothing to reply to.
 
-WHATSAPP_EXAMPLE = """Hi bhai 👋
+# Step 1 — the hook. One simple question. No links. No "I am a developer".
+WHATSAPP_INITIAL_EXAMPLE = """Hello 😊 Is this Trinity Fitness?
 
-I checked out Trinity Fitness and noticed there's no website yet.
+I just wanted to ask you something quick."""
 
-Here is a demo concept to see how it might look:
-Demo:
+# Step 2 — sent after they reply. Now the demo link is welcome.
+WHATSAPP_DEMO_EXAMPLE = """Great 🙌 I actually made a sample homepage design for you — totally free.
+
+Takes 1 min to see 👇
 https://premium-fitness-portfolio.vercel.app/
 
-I can make a quick free demo for you too just to see how it looks. If you like it, we can build the full site. Let me know!"""
+If you like it, we can build the full website. No pressure at all!"""
 
-SMS_EXAMPLE = """Hi bhai 👋 Checked out Trinity Fitness and noticed no website yet. Here's a demo concept: https://premium-fitness-portfolio.vercel.app/ I can make a free demo for you too, if you like it we can build the full site. Let me know!"""
+# Follow-up — they never replied to step 1. Tiny nudge, still a question.
+WHATSAPP_FOLLOWUP_EXAMPLE = """Hi 😊 just checking — did you see my message?
 
-EMAIL_EXAMPLE_SUBJECT = "Quick homepage concept for Trinity Fitness"
-EMAIL_EXAMPLE_BODY = """Hi bhai 👋,
+I have a free design idea ready for your business. Want me to send it?"""
 
-I checked out Trinity Fitness and noticed there's no website yet.
+# Budget objection — reassure, no payment, just look.
+WHATSAPP_BUDGET_EXAMPLE = """No problem at all 😊 You don't have to pay anything right now.
 
-Here is a demo concept to see how it might look:
-Demo:
+Let me just send you the free demo, you can take a look 👇
 https://premium-fitness-portfolio.vercel.app/
 
-I can make a quick free demo for you too just to see how it looks. If you like it, we can build the full site. Let me know!"""
+If you like it we can think about it later, otherwise no worries!"""
+
+SMS_EXAMPLE = """Hi! We made a free sample website design for Trinity Fitness. Want to see it? Reply and I will send the link."""
+
+EMAIL_EXAMPLE_SUBJECT = "Quick website idea for Trinity Fitness"
+EMAIL_EXAMPLE_BODY = """Hi,
+
+I came across Trinity Fitness and put together a quick sample homepage design for you — completely free, just to show what's possible.
+
+Here it is:
+https://premium-fitness-portfolio.vercel.app/
+
+If you like it, we can build the full website. No pressure at all — happy to hear your thoughts.
+
+Thanks,
+Vernora"""
 
 
 # ── Main generation function ───────────────────────────────────────────────────
@@ -124,71 +147,90 @@ async def generate_outreach_message(
 ) -> dict[str, str]:
     category_text = category or "business"
 
-    if website_status == "NO_WEBSITE":
-        context = "They do NOT have any website right now. Say: 'noticed there's no website yet'"
-    elif website_status == "BROKEN":
-        context = "They have a website but it is broken / not loading. Say: 'noticed the website wasn't loading'"
-    else:
-        context = "They have a working website but it could be much better. Say: 'noticed the current website could use an update'"
-
     portfolio_links = _pick_portfolio_links(category_text)
     demo_links_str = "\n".join(portfolio_links) if portfolio_links else "https://brijesh-dev-portfolio.vercel.app/"
 
-    # ── Intent / follow-up context ──
-    if prompt_type == "follow_up":
-        intent_context = "You are sending a SHORT follow-up. They didn't reply to your first message. Keep it very short."
-        cta_hint = "If you'd still like a free demo for your business, just let me know."
+    # ── Decide whether THIS message should carry the demo link ──
+    # WhatsApp first-touch (initial) and follow-up = NO link (just earn a reply first).
+    # send_demo / objection_budget = link goes in. Email & SMS are one-shot, so link always goes in.
+    is_whatsapp = platform == "whatsapp"
+    include_links = (not is_whatsapp) or prompt_type in ("send_demo", "objection_budget")
+
+    # ── Per-message-type intent + concrete example ──
+    if prompt_type == "send_demo":
+        intent_context = (
+            "They REPLIED to your first message. Now share the free sample design. "
+            "Sound happy they replied. Lead with the demo link, then offer to build the full site. No pressure."
+        )
+        wa_example = WHATSAPP_DEMO_EXAMPLE
+    elif prompt_type == "follow_up":
+        intent_context = (
+            "They did NOT reply to your first message. Send a tiny, friendly nudge. "
+            "Re-ask gently. Do NOT sound annoyed or pushy. Do NOT paste any link yet."
+        )
+        wa_example = WHATSAPP_FOLLOWUP_EXAMPLE
     elif prompt_type == "objection_budget":
-        intent_context = "They said they don't have budget right now. Be extremely casual."
-        cta_hint = "No worries! If you just want me to make a free demo for fun so you can see it, let me know."
-    else:
-        intent_context = "This is your FIRST message to them. You are showing them a demo concept."
-        cta_hint = "I can make a quick free demo for you too. If you like it, we can build the full site. Let me know!"
+        intent_context = (
+            "They said they have no budget right now. Be very relaxed. Make clear there is ZERO payment "
+            "needed to just look at the free demo. Share the link and tell them to decide later."
+        )
+        wa_example = WHATSAPP_BUDGET_EXAMPLE
+    else:  # initial
+        intent_context = (
+            "This is your FIRST message. Your ONLY goal is to get a reply — nothing else. "
+            "Ask ONE short, warm question (e.g. confirm they are the owner, or ask if they have a website). "
+            "Do NOT pitch. Do NOT mention you make websites. Do NOT paste any link. Do NOT explain why you messaged."
+        )
+        wa_example = WHATSAPP_INITIAL_EXAMPLE
 
-    # ── System prompt for consistent persona ──
-    system_prompt = """You are Vernora, a friendly Indian freelance web developer reaching out to local business owners.
+    # ── System prompt: the persona + hard rules ──
+    system_prompt = """You are Vernora, a friendly freelance web developer messaging local business owners on WhatsApp.
 
-TONE RULES (very important):
-- Write like a real person texting. Extremely casual, warm, human.
-- Start with "Hi bhai 👋" or "Hi 👋".
-- Do NOT mention "Google". Just say "I checked out [Name]".
-- Do NOT mention reviews, ratings, or stars.
-- Do NOT talk about yourself ("I'm a web developer", "my past work", "my portfolio"). Make it about THEM.
-- Do NOT use sales language ("online presence", "boost", "elevate", "stand out").
-- Say "Here is a demo concept to see how it might look" before the links.
-- End by offering: "I can make a quick free demo for you too just to see how it looks. If you like it, we can build the full site."
-- ONLY include the provided Demo link(s). Format exactly as:
-Demo:
-[link 1]
-[link 2 (if provided)]
-- Keep it extremely short. 3-4 short lines max.
+Write in very SIMPLE, everyday English — the kind a local shop owner with basic English can read instantly. Warm, casual, human — like messaging a neighbourhood shop owner, not a corporate email.
+
+HARD TONE RULES:
+- NEVER start with "Hi bhai" — every spammer uses it and owners instantly ignore it. Start with "Hello 😊", "Hi 😊", or the business name.
+- Use small, common words only. Short, plain sentences. No fancy or formal words.
+- Make it feel 1-to-1 and personal. NEVER use words that hint it's a mass message: no "too", no "also", no "many businesses".
+- Do NOT mention "Google", reviews, ratings, or stars.
+- Do NOT use sales/agency language: no "online presence", "boost", "grow", "elevate", "stand out", "digital", "leverage".
+- Use 1-2 emojis max. Never more.
+- Extremely short. WhatsApp messages must be 1-3 short lines.
 
 THINGS YOU MUST NEVER SAY:
-- "I came across you on Google"
-- "Saw your 4.5 star rating"
-- "I'm a web developer"
-- "Here is some of my past work"
-- "Here is my portfolio"
-- "Would you be open to"
-- "I was playing around with some ideas" (Say "So I put together a quick homepage concept" instead)"""
+- "Hi bhai"
+- "I came across you on Google" / "Saw your rating"
+- "I'm a web developer" (in the FIRST message)
+- "Here is my portfolio" / "my past work"
+- "Would you be open to" / "I'd love to discuss"
+- Any sentence longer than 14 words."""
 
-    # ── Platform-specific user prompt ──
-    if platform == "whatsapp":
+    # ── Platform-specific format block ──
+    if is_whatsapp:
+        if include_links:
+            link_rule = f"""- Include the demo link(s) below, each on its own line, right after a line like "Takes 1 min to see 👇":
+{demo_links_str}"""
+        else:
+            link_rule = "- Do NOT include ANY link or URL. This message's only job is to start a conversation."
+
         platform_rules = f"""WHATSAPP FORMAT:
-- If their name is very long (like 'Trinity fitness lounge Gym best gym in miraroad'), SHORTEN IT naturally (e.g. 'Trinity Fitness').
-- Keep the TOTAL message very short.
-- Use 1-2 emojis max. Do NOT overdo it.
+- If the name is very long (e.g. 'Trinity fitness lounge Gym best gym in miraroad'), shorten it naturally (e.g. 'Trinity Fitness').
+- Keep it to 1-3 short lines. Shorter = more replies.
+- Use 1-2 emojis max.
+{link_rule}
 
-EXAMPLE of the tone and format I want (do NOT copy this exactly, just match the feel):
+EXAMPLE of the exact tone/length I want (match the FEEL, do not copy word-for-word):
 ---
-{WHATSAPP_EXAMPLE}
+{wa_example}
 ---"""
         json_format = '{\n  "whatsapp": "the whatsapp message"\n}'
 
     elif platform == "sms":
         platform_rules = f"""SMS FORMAT:
 - Maximum 160 characters total. This is strict.
-- NO emojis.
+- Very simple plain English. NO emojis.
+- One sentence + a short question that invites a reply.
+{f"- You may include this link: {demo_links_str.splitlines()[0]}" if include_links else "- NO links."}
 
 EXAMPLE:
 ---
@@ -198,10 +240,12 @@ EXAMPLE:
 
     else:  # email
         platform_rules = f"""EMAIL FORMAT:
-- If their name is very long, SHORTEN IT naturally.
-- Write a short, warm cold email that feels like a text message.
-- Subject line must be simple and not clickbaity.
-- NO emojis anywhere.
+- Shorten a very long name naturally.
+- Short, warm cold email in clean, simple English.
+- Simple, non-clickbaity subject line.
+- Include the demo link(s):
+{demo_links_str}
+- Sign off as "Vernora". NO emojis.
 
 EXAMPLE:
 Subject: {EMAIL_EXAMPLE_SUBJECT}
@@ -214,13 +258,9 @@ Body:
     user_prompt = f"""Write a {platform} outreach message for this business:
 
 - Business Name: {name}
-- Website situation: {context}
+- Category: {category_text}
 
-Context: {intent_context}
-Call to action to use: {cta_hint}
-
-Demo Link(s) to include:
-{demo_links_str}
+Situation: {intent_context}
 
 {platform_rules}
 

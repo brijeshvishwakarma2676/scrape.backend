@@ -11,6 +11,7 @@ class Business(Base):
     name = Column(String(255), nullable=False)
     category = Column(String(100))
     phone = Column(String(50))
+    phone_type = Column(String(20), default="unknown")  # mobile, landline, unknown
     website = Column(String(500))
     address = Column(Text)
     rating = Column(Float)

@@ -5,6 +5,7 @@ from typing import Optional
 from database import get_db
 import models
 import schemas
+from services.phone_utils import classify_phone
 
 router = APIRouter()
 
@@ -34,6 +35,98 @@ def get_stats(db: Session = Depends(get_db)):
         contacted=contacted,
         interested=interested,
         won=won,
+    )
+
+
+@router.get("/analytics", response_model=schemas.Analytics)
+def get_analytics(db: Session = Depends(get_db)):
+    B = models.Business
+
+    def grouped(column, labels: dict[str, str] | None = None, order: list[str] | None = None):
+        rows = dict(db.query(column, func.count(B.id)).group_by(column).all())
+        keys = order or sorted(rows.keys(), key=lambda k: -rows[k])
+        out = []
+        for k in keys:
+            count = rows.get(k, 0)
+            if count == 0 and order is None:
+                continue
+            name = labels.get(k, k) if labels else (k or "Unknown")
+            out.append(schemas.NameValue(name=name, value=count))
+        return out
+
+    # ── Leads over time (daily new + running cumulative) ──
+    date_rows = (
+        db.query(func.date(B.created_at), func.count(B.id))
+        .group_by(func.date(B.created_at))
+        .order_by(func.date(B.created_at))
+        .all()
+    )
+    leads_over_time = []
+    cumulative = 0
+    for d, c in date_rows:
+        cumulative += c
+        leads_over_time.append(
+            schemas.TimePoint(date=str(d), new=c, cumulative=cumulative)
+        )
+
+    # ── Status breakdowns ──
+    lead_status = grouped(
+        B.lead_status,
+        order=["NEW", "CONTACTED", "INTERESTED", "WON", "LOST"],
+    )
+    website_status = grouped(
+        B.website_status,
+        labels={
+            "NO_WEBSITE": "No Website",
+            "WORKING": "Working",
+            "BROKEN": "Broken",
+            "UNCHECKED": "Unchecked",
+        },
+        order=["NO_WEBSITE", "WORKING", "BROKEN", "UNCHECKED"],
+    )
+    phone_type = grouped(
+        B.phone_type,
+        labels={"mobile": "Mobile", "landline": "Landline", "unknown": "Unknown"},
+        order=["mobile", "landline", "unknown"],
+    )
+
+    # ── Top categories (skip empty) ──
+    cat_rows = (
+        db.query(B.category, func.count(B.id))
+        .filter(B.category.isnot(None), B.category != "")
+        .group_by(B.category)
+        .order_by(func.count(B.id).desc())
+        .limit(6)
+        .all()
+    )
+    top_categories = [schemas.NameValue(name=c, value=n) for c, n in cat_rows]
+
+    # ── Conversion funnel (monotonic) ──
+    total = db.query(func.count(B.id)).scalar() or 0
+    contacted = db.query(func.count(B.id)).filter(
+        B.lead_status.in_(["CONTACTED", "INTERESTED", "WON"])
+    ).scalar() or 0
+    interested = db.query(func.count(B.id)).filter(
+        B.lead_status.in_(["INTERESTED", "WON"])
+    ).scalar() or 0
+    won = db.query(func.count(B.id)).filter(B.lead_status == "WON").scalar() or 0
+    funnel = [
+        schemas.NameValue(name="Total Leads", value=total),
+        schemas.NameValue(name="Contacted", value=contacted),
+        schemas.NameValue(name="Interested", value=interested),
+        schemas.NameValue(name="Won", value=won),
+    ]
+
+    messages_sent = db.query(func.count(models.Message.id)).scalar() or 0
+
+    return schemas.Analytics(
+        leads_over_time=leads_over_time,
+        lead_status=lead_status,
+        website_status=website_status,
+        phone_type=phone_type,
+        top_categories=top_categories,
+        funnel=funnel,
+        messages_sent=messages_sent,
     )
 
 
@@ -84,6 +177,7 @@ def create_business(data: schemas.BusinessCreate, db: Session = Depends(get_db))
     business = models.Business(**data.model_dump())
     if not business.website or business.website.strip() == "":
         business.website_status = "NO_WEBSITE"
+    business.phone_type = classify_phone(business.phone)
     db.add(business)
     db.commit()
     db.refresh(business)
@@ -103,8 +197,11 @@ def update_business(business_id: int, data: schemas.BusinessUpdate, db: Session 
     business = db.query(models.Business).filter(models.Business.id == business_id).first()
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
-    for field, value in data.model_dump(exclude_none=True).items():
+    update_data = data.model_dump(exclude_none=True)
+    for field, value in update_data.items():
         setattr(business, field, value)
+    if "phone" in update_data:
+        business.phone_type = classify_phone(business.phone)
     db.commit()
     db.refresh(business)
     return business

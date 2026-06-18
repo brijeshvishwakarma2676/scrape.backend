@@ -34,6 +34,7 @@ class BusinessOut(BaseModel):
     name: str
     category: Optional[str]
     phone: Optional[str]
+    phone_type: Optional[str] = None
     website: Optional[str]
     address: Optional[str]
     rating: Optional[float]
@@ -84,3 +85,24 @@ class DashboardStats(BaseModel):
     contacted: int
     interested: int
     won: int
+
+
+class TimePoint(BaseModel):
+    date: str
+    new: int
+    cumulative: int
+
+
+class NameValue(BaseModel):
+    name: str
+    value: int
+
+
+class Analytics(BaseModel):
+    leads_over_time: list[TimePoint]
+    lead_status: list[NameValue]
+    website_status: list[NameValue]
+    phone_type: list[NameValue]
+    top_categories: list[NameValue]
+    funnel: list[NameValue]
+    messages_sent: int
